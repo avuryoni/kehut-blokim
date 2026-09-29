@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blooket Trivia Hebrew Edition - Cumulative Perks</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Rubik -->
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Rubik', sans-serif;
+            background: linear-gradient(135deg, #090d16 0%, #171c33 50%, #291e4a 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .arcade-shadow {
+            box-shadow: 0 12px 0 rgba(0, 0, 0, 0.6), 0 25px 35px rgba(0, 0, 0, 0.5);
+        }
+        .arcade-button {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4);
+        }
+        .arcade-button:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes pulse-gold {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .gold-pulse {
+            animation: pulse-gold 1s infinite;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-3 sm:p-6 min-h-screen">
+
+    <div id="app" class="w-full max-w-3xl mx-auto bg-slate-900/95 backdrop-blur-md rounded-3xl border-4 border-indigo-500/60 arcade-shadow p-5 sm:p-8 flex flex-col min-h-[680px] justify-between relative overflow-hidden">
+        
+        <!-- Header / Stats Bar -->
+        <div id="stats-bar" class="hidden flex justify-between items-center bg-slate-800/95 p-3.5 rounded-2xl border-2 border-indigo-400/40 mb-5 shadow-md">
+            <div class="flex items-center gap-3">
+                <div id="current-blook-avatar" class="text-3xl bg-indigo-950 p-2 rounded-xl border border-indigo-500">🦊</div>
+                <div>
+                    <div id="player-name-display" class="font-bold text-xs sm:text-sm text-indigo-300">שחקן</div>
+                    <div id="blook-perk-display" class="text-[10px] text-amber-300 font-semibold">בונוס מצטבר: רגיל</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 sm:gap-5">
+                <div class="flex items-center gap-1.5 bg-amber-500/20 px-3 py-1.5 rounded-xl border border-amber-500/40">
+                    <span class="text-lg">🪙</span>
+                    <span id="gold-display" class="font-black text-amber-300 text-base sm:text-lg">150</span>
+                </div>
+                <div class="flex items-center gap-1.5 bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/40">
+                    <span class="text-lg">⭐</span>
+                    <span id="score-display" class="font-black text-emerald-300 text-base sm:text-lg">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Screen Container -->
+        <div id="screen-container" class="flex-grow flex flex-col justify-center items-center my-auto">
+            <!-- Populated via JavaScript -->
+        </div>
+
+        <!-- Footer Bar -->
+        <div class="mt-5 pt-3 border-t border-indigo-900/60 flex justify-between items-center text-xs text-indigo-400">
+            <span>🎮 בלוקט טריוויה עברית - בונוסים מצטברים (Cumulative Perks)</span>
+            <button onclick="toggleAudio()" id="sound-toggle-btn" class="bg-indigo-950 hover:bg-indigo-900 px-3 py-1.5 rounded-xl border border-indigo-700 transition flex items-center gap-1 font-bold">
+                🔊 קול: פעיל
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.setValueAtTime(120, now + 0.15);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'gold') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-toggle-btn').innerText = soundEnabled ? '🔊 קול: פעיל' : '🔇 קול: מושתק';
+        }
+
+        const blooksData = [
+            { 
+                id: 'fox', name: 'שועל חמקמק', emoji: '🦊', price: 0, unlocked: true, 
+                desc: 'ללא בונוס מיוחד',
+                bonusGold: 0, bonusScoreMultiplier: 1, bonusTime: 0 
+            },
+            { 
+                id: 'panda', name: 'פנדה עצלנית', emoji: '🐼', price: 120, unlocked: false, 
+                desc: '+20% זהב',
+                bonusGold: 0.2, bonusScoreMultiplier: 1, bonusTime: 0 
+            },
+            { 
+                id: 'unicorn', name: 'חד קרן זוהר', emoji: '🦄', price: 280, unlocked: false, 
+                desc: '+30% זהב נוסף (סך הכל +50%)',
+                bonusGold: 0.3, bonusScoreMultiplier: 1, bonusTime: 0 
+            },
+            { 
+                id: 'alien', name: 'חייזר משוגע', emoji: '👽', price: 450, unlocked: false, 
+                desc: '+3 שניות נוספות לטיימר (מצטבר)',
+                bonusGold: 0, bonusScoreMultiplier: 1, bonusTime: 3 
+            },
+            { 
+                id: 'dragon', name: 'דרקון אש', emoji: '🐲', price: 700, unlocked: false, 
+                desc: 'פי 2 ניקוד (x2) (מצטבר)',
+                bonusGold: 0, bonusScoreMultiplier: 2, bonusTime: 0 
+            },
+            { 
+                id: 'robot', name: 'רובוט חכם', emoji: '🤖', price: 1000, unlocked: false, 
+                desc: '+2 שניות נוספות לטיימר (סך הכל +5)',
+                bonusGold: 0, bonusScoreMultiplier: 1, bonusTime: 2 
+            },
+            { 
+                id: 'ninja', name: 'נינג\'ה סודי', emoji: '🥷', price: 1350, unlocked: false, 
+                desc: '+30% זהב נוסף (סך הכל +80%)',
+                bonusGold: 0.3, bonusScoreMultiplier: 1, bonusTime: 0 
+            },
+            { 
+                id: 'wizard', name: 'קוסם מסתורי', emoji: '🧙‍♂️', price: 1700, unlocked: false, 
+                desc: '+3 שניות נוספות לטיימר (סך הכל +8)',
+                bonusGold: 0, bonusScoreMultiplier: 1, bonusTime: 3 
+            },
+            { 
+                id: 'tiger', name: 'נמר אמיץ', emoji: '🐯', price: 2100, unlocked: false, 
+                desc: 'מכפיל ניקוד נוסף (סך הכל x3)',
+                bonusGold: 0, bonusScoreMultiplier: 1.5, bonusTime: 0 
+            },
+            { 
+                id: 'astronaut', name: 'אסטרונאוט גיבור', emoji: '👨‍🚀', price: 2600, unlocked: false, 
+                desc: '+50% זהב נוסף + מכפיל ניקוד אולטימטיבי (x4) + 5 שניות נוספות!',
+                bonusGold: 0.5, bonusScoreMultiplier: 2, bonusTime: 5 
+            }
+        ];
+
+        // Function to calculate cumulative stats for any blook based on what is unlocked
+        function getCumulativePerks(blookId) {
+            let totalGoldBonusPct = 0; // sum of percentages
+            let totalScoreMultiplier = 1; // multiplicative
+            let totalExtraTime = 0; // sum of seconds
+
+            let targetIndex = blooksData.findIndex(b => b.id === blookId);
+            if (targetIndex === -1) targetIndex = 0;
+
+            for (let i = 0; i <= targetIndex; i++) {
+                if (blooksData[i].unlocked || i === 0) {
+                    totalGoldBonusPct += blooksData[i].bonusGold;
+                    totalScoreMultiplier *= blooksData[i].bonusScoreMultiplier;
+                    totalExtraTime += blooksData[i].bonusTime;
+                }
+            }
+
+            return {
+                goldMultiplier: 1 + totalGoldBonusPct,
+                scoreMultiplier: totalScoreMultiplier,
+                extraTime: totalExtraTime
+            };
+        }
+
+        // Categories Configuration
+        const categoriesData = {
+            all: { name: "מעורב (הכל מהכל)", icon: "🌟" },
+            science: { name: "מדע וטבע", icon: "🧬" },
+            history: { name: "היסטוריה וגיאוגרפיה", icon: "🗺️" },
+            tech: { name: "טכנולוגיה ומחשבים", icon: "💻" },
+            pop: { name: "תרבות פופ וגיימינג", icon: "🎮" },
+            space: { name: "חלל ויקום", icon: "🚀" },
+            math: { name: "חידות חשבון ולוגיקה", icon: "🔢" },
+            nature: { name: "עולם חי וצומח", icon: "🦁" }
+        };
+
+        const masterQuestionsPool = [
+            // Science (20)
+            { id: 's1', category: 'science', question: "מהו כוכב הלכת הגדול ביותר במערכת השמש?", options: ["מאדים", "צדק", "שבתאי", "כדור הארץ"], correct: 1 },
+            { id: 's2', category: 'science', question: "כמה רגליים יש לעכביש טיפוסי?", options: ["6", "8", "10", "12"], correct: 1 },
+            { id: 's3', category: 'science', question: "מהי הנוסחה הכימית של מים?", options: ["CO2", "H2O", "NaCl", "O2"], correct: 1 },
+            { id: 's4', category: 'science', question: "איזה יסוד כימי מסומן באות Au?", options: ["כסף", "זהב", "ברזל", "נחושת"], correct: 1 },
+            { id: 's5', category: 'science', question: "מהו בעל החיים המהיר ביותר ביבשה?", options: ["אריה", "סוס", "ברדלס (צ'יטה)", "זברה"], correct: 2 },
+            { id: 's6', category: 'science', question: "איזה גז חיוני לנשימה של בני אדם?", options: ["פחמן דו-חמצני", "חמצן", "חנקן", "מימן"], correct: 1 },
+            { id: 's7', category: 'science', question: "באיזו שכבה באטמוספרה נוצרים רוב ענני מזג האוויר?", options: ["סטרטוספירה", "טרופוספירה", "מזוספירה", "תרמוספירה"], correct: 1 },
+            { id: 's8', category: 'science', question: "מהו האיבר הגדול ביותר בגוף האדם?", options: ["המוח", "הכבד", "העור", "הלב"], correct: 2 },
+            { id: 's9', category: 'science', question: "מהו טמפרטורת הרתיחה של מים בלחץ אטמוספרי רגיל (°C)?", options: ["90 מעלות", "100 מעלות", "120 מעלות", "212 מעלות"], correct: 1 },
+            { id: 's10', category: 'science', question: "איזה גז מהווה את החלק הגדול ביותר באטמוספרה של כדור הארץ?", options: ["חמצן", "חנקן", "ארגון", "פחמן דו-חמצני"], correct: 1 },
+            { id: 's11', category: 'science', question: "מהו כוח המשיכה המרכזי ששומר אותנו על האדמה?", options: ["מגנטיות", "כבידה (Gravity)", "חשמל", "חיכוך"], correct: 1 },
+            { id: 's12', category: 'science', question: "איזה כוכב לכת קרוב ביותר לשמש?", options: ["נוגה", "מרקורי (חמה)", "מאדים", "ארץ"], correct: 1 },
+            { id: 's13', category: 'science', question: "באיזו יחידות נמדדת אנרגיה או חום במזון?", options: ["וואט", "קלוריות", "ג'אול", "אמפר"], correct: 1 },
+            { id: 's14', category: 'science', question: "מהו שמו של המדען שניסח את תורת היחסות?", options: ["אייזק ניוטון", "אלברט איינשטיין", "ניקולא טסלה", "גלילאו גליליי"], correct: 1 },
+            { id: 's15', category: 'science', question: "מהו החומר הקשה ביותר בעולם בטבע?", options: ["ברזל", "טיטניום", "יהלום", "גרניט"], correct: 2 },
+            { id: 's16', category: 'science', question: "איזה סוג קרינה מהשמש גורם לשיזוף או כוויות עור?", options: ["קרינת אינפרא-אדום", "קרינה אולטרה-סגולה (UV)", "מיקרוגל", "גלי רדיו"], correct: 1 },
+            { id: 's17', category: 'science', question: "כמה עצמות יש בגוף תינוק שזה עתה נולד בערך (יותר מאשר מבוגר)?", options: ["כ-150", "כ-206", "כ-270-300", "כ-500"], correct: 2 },
+            { id: 's18', category: 'science', question: "מהו שמו של המדען שהמציא את נורת החשמל המסחרית?", options: ["תומאס אדיסון", "אלכסנדר גרהם בל", "ניקולא טסלה", "בנג'מין פרנקלין"], correct: 0 },
+            { id: 's19', category: 'science', question: "איזה סוג דם נחשב ל'תורם אוניברסלי'?", options: ["A", "B", "AB", "O-רצס שלילי"], correct: 3 },
+            { id: 's20', category: 'science', question: "מהו קצב מהירות האור בריק (בקירוב קילומטר בשנייה)?", options: ["300 אלף ק\"מ בשנייה", "3000 ק\"מ בשנייה", "30 מיליון ק\"מ בשנייה", "300 ק\"מ בשנייה"], correct: 0 },
+
+            // History & Geography (20)
+            { id: 'h1', category: 'history', question: "איזו מדינה היא הגדולה ביותר בעולם מבחינת שטח?", options: ["ארצות הברית", "סין", "קנדה", "רוסיה"], correct: 3 },
+            { id: 'h2', category: 'history', question: "מהי בירת אוסטרליה?", options: ["סידני", "מלבורן", "קנברה", "בריזבן"], correct: 2 },
+            { id: 'h3', category: 'history', question: "מי כתב את הספר 'הנסיך הקטן'?", options: ["אנטואן דה סנט-אכזופרי", "ז'ול ורן", "ויקטור הוגו", "מולייר"], correct: 0 },
+            { id: 'h4', category: 'history', question: "באיזו שנה התרחשה ההכרזה על הקמת מדינת ישראל?", options: ["1945", "1948", "1950", "1967"], correct: 1 },
+            { id: 'h5', category: 'history', question: "באיזו יבשת נמצא מדבר סהרה?", options: ["אסיה", "אפריקה", "דרום אמריקה", "אוסטרליה"], correct: 1 },
+            { id: 'h6', category: 'history', question: "מהי העיר העתיקה ביותר שיישובה לא נפסק שמוכרת בעולם?", options: ["ירושלים", "רומא", "יריחו", "אתונה"], correct: 2 },
+            { id: 'h7', category: 'history', question: "איזו מדינה נחשבת למולדת הפירמידות הגדולות העתיקות?", options: ["מקסיקו", "מצרים", "יוון", "עיראק"], correct: 1 },
+            { id: 'h8', category: 'history', question: "מהי הבירה של יפן?", options: ["אוסקה", "קיוטו", "טוקיו", "הירושימה"], correct: 2 },
+            { id: 'h9', category: 'history', question: "איזה אוקיינוס הוא הגדול ביותר בעולם?", options: ["האוקיינוס האטלנטי", "האוקיינוס השקט", "האוקיינוס ההודי", "אוקיינוס קרח הצפוני"], correct: 1 },
+            { id: 'h10', category: 'history', question: "באיזו מדינה נמצא מגדל אייפל?", options: ["איטליה", "ספרד", "צרפת", "בריטניה"], correct: 2 },
+            { id: 'h11', category: 'history', question: "מהו הנהר הארוך ביותר בעולם?", options: ["אמזונס", "נילוס", "מיסיסיפי", "ינגטse"], correct: 1 },
+            { id: 'h12', category: 'history', question: "איזו אימפריה בנתה את החומה הגדולה של סין?", options: ["האימפריה המונגולית", "שושלת צ'ין / מינג", "האימפריה הרומית", "הפרסים"], correct: 1 },
+            { id: 'h13', category: 'history', question: "מי היה הקיסר הראשון של האימפריה הרומית?", options: ["יוליוס קיסר", "אוגוסטוס", "נירון", "קונסטנטינוס"], correct: 1 },
+            { id: 'h14', category: 'history', question: "מהי הבירה של קנדה?", options: ["טורונטו", "ונקובר", "אוטווה", "מונטריאול"], correct: 2 },
+            { id: 'h15', category: 'history', question: "באיזו יבשת נמצאת ברזיל?", options: ["אפריקה", "דרום אמריקה", "אסיה", "אירופה"], correct: 1 },
+            { id: 'h16', category: 'history', question: "איזו מדינה מכונה 'ארץ המגף'?", options: ["יוון", "ספרד", "איטליה", "פורטוגל"], correct: 2 },
+            { id: 'h17', category: 'history', question: "איזה ים מפריד בין ישראל לירדן וסגור מכל עבריו ביבשה?", options: ["הים התיכון", "ים המלח", "ים סוף", "הכנרת"], correct: 1 },
+            { id: 'h18', category: 'history', question: "מי היה מנהיג ארה\"ב בזמן מלחמת האזרחים ואשר ביטל את העבדות?", options: ["ג'ורג' וושינגטון", "אברהם לינקולן", "תומאס ג'פרсон", "פרנקלין רוזוולט"], correct: 1 },
+            { id: 'h19', category: 'history', question: "מהי בירת ארגנטינה?", options: ["סאו פאולו", "בואנוס איירס", "ריו דה ז'ניירו", "סנטיאגו"], correct: 1 },
+            { id: 'h20', category: 'history', question: "איזו מדינה באסיה מונה את האוכלוסייה הגדולה ביותר בעולם כיום (עקפה את סין)?", options: ["יפן", "הודו", "אינדונזיה", "פקיסטן"], correct: 1 },
+
+            // Tech (20)
+            { id: 't1', category: 'tech', question: "מי נחשב לממציא או מתכנן המחשב המכני הראשון בהיסטוריה?", options: ["צ'ארלס באבג'", "אלן טיורינג", "ביל גייטס", "סטיב ג'ובס"], correct: 0 },
+            { id: 't2', category: 'tech', question: "מה פירוש הקיצור 'HTML' בפיתוח אתרים?", options: ["Hyper Text Markup Language", "High Tech Modern Link", "Home Tool Maker Language", "Hyper Transfer Multi Line"], correct: 0 },
+            { id: 't3', category: 'tech', question: "איזו חברה פיתחה את מערכת ההפעלה אנדרואיד (Android)?", options: ["אפל", "מיקרוסופט", "גוגל", "סמסונג"], correct: 2 },
+            { id: 't4', category: 'tech', question: "מהו הזיכרון הראשי במחשב שמאבד את תוכנו בכיבוי המכשיר?", options: ["ROM", "RAM", "SSD", "HDD"], correct: 1 },
+            { id: 't5', category: 'tech', question: "באיזו שנה הושק הדגם הראשון של האייפון (iPhone)?", options: ["2005", "2007", "2010", "2012"], correct: 1 },
+            { id: 't6', category: 'tech', question: "איזה פרוטוקול משמש להעברת דפי אינטרנט מאובטחים ברשת?", options: ["FTP", "SMTP", "HTTPS", "SSH"], correct: 2 },
+            { id: 't7', category: 'tech', question: "מה שמו של עוזר הבינה המלאכותית הראשון של אפל?", options: ["סירִי (Siri)", "אלקסה", "קורטנה", "גוגל אסיסטנט"], correct: 0 },
+            { id: 't8', category: 'tech', question: "איזו שפת תכנות משמשת בעיקר לפיתוח דפי אינטרנט אינטראקטיביים בצד הלקוח?", options: ["פייתון", "ג'אווה", "ג'אווה סקריפט (JavaScript)", "C++"], correct: 2 },
+            { id: 't9', category: 'tech', question: "מהו שמו של המנוע חיפוש הפופולרי בעולם?", options: ["יאהו", "בינג", "גוגל (Google)", "דאק דאק גו"], correct: 2 },
+            { id: 't10', category: 'tech', question: "איזה רכיב חומרה אחראי על עיקרי החישובים במחשב?", options: ["כרטיס מסך", "מעבד (CPU)", "ספק כוח", "כונן קשיח"], correct: 1 },
+            { id: 't11', category: 'tech', question: "מי ייסד את חברת מיקרוסופט יחד עם פול אלן?", options: ["סטב ג'ובס", "ביל גייטס", "מארק צוקרברג", "אילון מאסק"], correct: 1 },
+            { id: 't12', category: 'tech', question: "מה פירוש הקיצור 'AI' בעולם הטכנולוגיה?", options: ["Automated Internet", "Artificial Intelligence", "Advanced Interaction", "Applied Innovation"], correct: 1 },
+            { id: 't13', category: 'tech', question: "איזו רשת חברתית מתאפיינת بصور וסרטונים קצרים והוקמה ב-2010?", options: ["פייסבוק", "טוויטר / X", "אינסטגרם (Instagram)", "לינקדאין"], correct: 2 },
+            { id: 't14', category: 'tech', question: "מהו הקובץ הקטן שאתרים שומרים במחשב שלך לצורך זיהוי?", options: ["וירוס", "קובץ עוגיה (Cookie)", "דרייבר", "פאטץ'"], correct: 1 },
+            { id: 't15', category: 'tech', question: "איזו חברה מייצרת את מעבדי 'Ryzen' וכרטיסי המסך 'Radeon'?", options: ["אינטל (Intel)", "אנבידיה (Nvidia)", "AMD", "קואלקום"], correct: 2 },
+            { id: 't16', category: 'tech', question: "באיזו שפה נכתבת רוב התשתית של מערכת ההפעלה לינוקס?", options: ["C", "Python", "Java", "Swift"], correct: 0 },
+            { id: 't17', category: 'tech', question: "מי המייסד והמנכ\"ל של חברת ספייס אקס (SpaceX) וטסלה?", options: ["ג'ף בזוס", "אילון מאסק", "מארק צוקרברג", "לארי פייג'"], correct: 1 },
+            { id: 't18', category: 'tech', question: "מהי השפה שפותחה על ידי גווידו ואן רוסום ונקראת על שם להקת נחש?", options: ["Java", "Python", "C#", "Ruby"], correct: 1 },
+            { id: 't19', category: 'tech', question: "איזו טכנולוגיה עומדת בבסיס מטבעות הקריפטו כמו ביטקוין?", options: ["בלוקצ'יין (Blockchain)", "ענן מבוזר", "בינה מלאכותית", "סיבי אופטיקה"], correct: 0 },
+            { id: 't20', category: 'tech', question: "מהו ראשי התיבות של USB בעולם החיבורים למחשב?", options: ["Universal Serial Bus", "Ultra Speed Board", "Unified System Bridge", "Unencrypted Secure Band"], correct: 0 },
+
+            // Pop Culture & Gaming (20)
+            { id: 'p1', category: 'pop', question: "איזה משחק מחשב מתאפיין בבניית עולמות מבלוקים והישרדות בלילות?", options: ["Fortnite", "Minecraft", "Roblox", "Pac-Man"], correct: 1 },
+            { id: 'p2', category: 'pop', question: "מי הוא הדמות הראשית והמוכרת ביותר של חברת נינטנדו?", options: ["סוניק", "מריו", "קראש באנדיקוט", "מאסטר צ'יף"], correct: 1 },
+            { id: 'p3', category: 'pop', question: "באיזה סרט מופיעה הדמות 'ספיידרמן'?", options: ["מארוול (Marvel)", "דיסי (DC)", "מלחמת הכוכבים", "הארי פוטר"], correct: 0 },
+            { id: 'p4', category: 'pop', question: "איזו חברה פיתחה את קונסולת הפלייסטיישן (PlayStation)?", options: ["נינטנדו", "מיקרוסופט", "סוני", "סגה"], correct: 2 },
+            { id: 'p5', category: 'pop', question: "מה שמו של בית הספר לקוסמות שבו לומד הארי פוטר?", options: ["הוגוורטס", "נרניה", "גותהאם", "אמברידג'"], correct: 0 },
+            { id: 'p6', category: 'pop', question: "באיזה משחק באטל רויאל צונחים לשלג או אי ונלחמים עד האחרון שנותר?", options: ["Minecraft", "Fortnite", "Tetris", "Chess"], correct: 1 },
+            { id: 'p7', category: 'pop', question: "איזו דמות היא קיפוד כחול ומהיר מאוד ממשחקי סגה?", options: ["מריו", "סוניק", "פוקימון", "קראש"], correct: 1 },
+            { id: 'p8', category: 'pop', question: "מי יוצר סדרת סרטי 'מלחמת הכוכבים' (Star Wars) המקורית?", options: ["סטיבן ספילברג", "ג'ורג' לוקאס", "כריסטופר נולאן", "קוונטין טרנטינו"], correct: 1 },
+            { id: 'p9', category: 'pop', question: "איזה משחק רטרו קלאסי כולל דמות צהובה שאוכלת נקודות ובורחת מרוחות?", options: ["Tetris", "Pac-Man", "Space Invaders", "Pong"], correct: 1 },
+            { id: 'p10', category: 'pop', question: "מה שמה של גיבורת העל מבית DC שחיה באמיזוניה ולוחמת עם לאסו?", options: ["וונדר וומן (Wonder Woman)", "קפטן מארוול", "האלמנת השחורה", "סופרגירל"], correct: 0 },
+            { id: 'p11', category: 'pop', question: "באיזו סדרה מופיעים דרקונים, כס ברזל ומשפחות נאמנות כמו סטארק ולניסטר?", options: ["שר הטבעות", "משחקי הכס (Game of Thrones)", "הארי פוטר", "פרסי ג'קסון"], correct: 1 },
+            { id: 'p12', category: 'pop', question: "איזה צבע חולצה לובש בדרך כלל סוניק הקיפוד?", options: ["אדום", "כחול (אין חולצה, הוא כחול כולו)", "ירוק", "צהוב"], correct: 1 },
+            { id: 'p13', category: 'pop', question: "מהו שם האולפן שיצר את סרטי האנימציה 'צעצוע של סיפור' ו'למצוא את נמו'?", options: ["דיסני", "פיקסار (Pixar)", "דרימוורקס", "אילומינישן"], correct: 1 },
+            { id: 'p14', category: 'pop', question: "איזה גיבור-על מגיע מכוכב הלכת קריפטון ושמו האזרחי הוא קלארק קנט?", options: ["באטמן", "סופרמן (Superman)", "פלאש", "איירון מן"], correct: 1 },
+            { id: 'p15', category: 'pop', question: "מה שמו של המכשף הרשע שמנסה להרוג את הארי פוטר?", options: ["וולדמורט (Voldemort)", "סנייפ", "דמבלדור", "סיריוס"], correct: 0 },
+            { id: 'p16', category: 'pop', question: "איזה משחק פופולרי כולל תפיסת יצורים בכדורים אדומים-לבנים בשם פוקיבולים?", options: ["Digimon", "Pokémon", "Yu-Gi-Oh", "BeyBlade"], correct: 1 },
+            { id: 'p17', category: 'pop', question: "איזה גיבור מפלדת על בקומיקס מארוול קרוי 'איש הברזל' ושמו טוני סטארק?", options: ["קפטן אמריקה", "ת'ור", "איירון מן (Iron Man)", "האלק"], correct: 2 },
+            { id: 'p18', category: 'pop', question: "מה שמו של השרברב הירוק ואחיו של מריו בעולם של נינטנדו?", options: ["לואיג'י (Luigi)", "ווריו", "דונקי קונג", "טואוד"], correct: 0 },
+            { id: 'p19', category: 'pop', question: "איזה שחקן מככב בסרט 'אופנהיימר' בתפקיד המדען הראשי?", options: ["קיליאן מרפי", "בראד פיט", "ליאונרדו דיקפריו", "טอม קרוז"], correct: 0 },
+            { id: 'p20', category: 'pop', question: "איזו להקת בנים קוריאנית נחשבת לתופעה עולמית עצומה במוזיקת קיי-פופ?", options: ["BTS", "BLACKPINK", "EXO", "Twice"], correct: 0 },
+
+            // Space & Universe (20)
+            { id: 'sp1', category: 'space', question: "איזה כוכב לכת ידוע בתור 'הכוכב האדום'?", options: ["נוגה", "מאדים", "צדק", "מרקורי"], correct: 1 },
+            { id: 'sp2', category: 'space', question: "כמה זמן לוקח לאור השמש להגיע לכדור הארץ?", options: ["כ-8 דקות", "שעה אחת", "יום שלם", "שנייה אחת"], correct: 0 },
+            { id: 'sp3', category: 'space', question: "מהי הגלקסיה שבה נמצאת מערכת השמש שלנו?", options: ["אנדרומדה", "שביל החלב", "סומבררו", "משולש"], correct: 1 },
+            { id: 'sp4', category: 'space', question: "איזה גוף שמימי נחשב לשחור ובולע כל אור שעובר דרכו?", options: ["חור שחור (Black Hole)", "כוכב ניוטרונים", "ננס לבן", "שביט"], correct: 0 },
+            { id: 'sp5', category: 'space', question: "מיהו האדם הראשון שדרך על הירח?", options: ["באז אולדרין", "ניל ארמסטרונג", "יורי גגארין", "אלן שפרד"], correct: 1 },
+            { id: 'sp6', category: 'space', question: "כמה כוכבי לכת מוכרים כיום במערכת השמש שלנו?", options: ["7", "8", "9", "10"], correct: 1 },
+            { id: 'sp7', category: 'space', question: "איזה כוכב לכת ידוע בטבעות הבולטות המקיפות אותו?", options: ["מאדים", "שבתאי (Saturn)", "נוגה", "נפטון"], correct: 1 },
+            { id: 'sp8', category: 'space', question: "מהו הכוכב הקרוב ביותר לכדור הארץ?", options: ["פרוקסימה קנטאורי", "השמש", "סיריוס", "פולאריס"], correct: 1 },
+            { id: 'sp9', category: 'space', question: "מהו שמה של תחנת החלל הבין-לאומית המאוישת שחגה סביב כדור הארץ?", options: ["ISS", "Mir", "Skylab", "Hubble"], correct: 0 },
+            { id: 'sp10', category: 'space', question: "איזה כוכב לכת חם ביותר במערכת השמש עקב אפקט חממה קיצוני?", options: ["מרקורי", "נוגה (Venus)", "מאדים", "צדק"], correct: 1 },
+            { id: 'sp11', category: 'space', question: "מהי טלסקופ החלל המפורסם ששוגר ב-1990 וצילם את עמקי היקום?", options: ["ג'יימס וב", "האבל (Hubble)", "פלנק", "קפלר"], correct: 1 },
+            { id: 'sp12', category: 'space', question: "ממה מורכב בעיקר כוכב כמו השמש שלנו?", options: ["מימן והליום", "מים וחמצן", "ברזל וסלע", "פחמן וחנקן"], correct: 0 },
+            { id: 'sp13', category: 'space', question: "מהי תופעת 'סופרנובה'?", options: ["היווצרות כוכב לכת חדש", "פיצוץ אדיר של כוכב בסוף חייו", "התנגשות בין שתי גלקסיות", "מסע בזמן של חללית"], correct: 1 },
+            { id: 'sp14', category: 'space', question: "כמה ירחים יש לכוכב הלכת מאדים?", options: ["אין לו ירחים", "1", "2 (פובוס ודימוס)", "4"], correct: 2 },
+            { id: 'sp15', category: 'space', question: "איזה כוכב לכת מכונה 'הענק הגז' הקר ביותר או הרחוק ביותר במערכת השמש?", options: ["שבתאי", "אורנוס / נפטון", "צדק", "מאדים"], correct: 1 },
+            { id: 'sp16', category: 'space', question: "מי היה האדם הראשון ששוגר לחלל החיצון?", options: ["ניל ארמסטרונג", "יורי גגארין", "ג'ון גלן", "באז אולדרין"], correct: 1 },
+            { id: 'sp17', category: 'space', question: "מהו שמו של כוכב הלכת הקטן ביותר במערכת השמש כיום?", options: ["מרקורי (חמה)", "מאדים", "נוגה", "פלוטו"], correct: 0 },
+            { id: 'sp18', category: 'space', question: "באילו שנים בקירוב הוכרז פלוטו כיורד ממעמד כוכב לכת לכוכב לכת ננסי?", options: ["1999", "2006", "2012", "2018"], correct: 1 },
+            { id: 'sp19', category: 'space', question: "מהו שמו של האסטרואיד הענק שנחשב לאחראי על הכחדת הדינוזאורים?", options: ["הלי", "צ'יקשולוב (Chicxulub)", "קרס", "וסטה"], correct: 1 },
+            { id: 'sp20', category: 'space', question: "מהי צורתם הגיאומטרית הכללית של רוב הגלקסיות הגדולות?", options: ["מרובעת", "ספירלית (משוכללת)", "משולשת", "קו ישר"], correct: 1 },
+
+            // Math & Logic (20)
+            { id: 'm1', category: 'math', question: "כמה זה 12 כפול 12?", options: ["124", "132", "144", "154"], correct: 2 },
+            { id: 'm2', category: 'math', question: "מהו שורש הריבועי של המספר 81?", options: ["7", "8", "9", "11"], correct: 2 },
+            { id: 'm3', category: 'math', question: "כמה מעלות יש בסך הכל בסכום זוויות של משולש?", options: ["90 מעלות", "180 מעלות", "360 מעלות", "270 מעלות"], correct: 1 },
+            { id: 'm4', category: 'math', question: "מה ערכו של פאי (Pi) בקירוב נפוץ?", options: ["3.14", "2.71", "1.41", "1.73"], correct: 0 },
+            { id: 'm5', category: 'math', question: "כמה זה 5 בחזקת 3 (5 בשלישית)?", options: ["15", "75", "125", "225"], correct: 2 },
+            { id: 'm6', category: 'math', question: "מהו המספר הראשוני (Prime Number) הקטן ביותר?", options: ["0", "1", "2", "3"], correct: 2 },
+            { id: 'm7', category: 'math', question: "אם יש לך 3 תפוחים ולקחת 2, כמה תפוחים יש לך?", options: ["1", "2", "3", "5"], correct: 1 },
+            { id: 'm8', category: 'math', question: "מהו התוצאה של 45 חלקי 5 פלוס 3?", options: ["9", "12", "15", "10"], correct: 1 },
+            { id: 'm9', category: 'math', question: "כמה זה 2 בחזקת 10 (2^10)?", options: ["512", "1024", "2048", "4096"], correct: 1 },
+            { id: 'm10', category: 'math', question: "מהו השטח של מלבן שאורכו 8 ורוחבו 5?", options: ["13", "26", "40", "45"], correct: 2 },
+            { id: 'm11', category: 'math', question: "כמה אחוזים הם חצי (1/2)?", options: ["25%", "50%", "75%", "100%"], correct: 1 },
+            { id: 'm12', category: 'math', question: "מהו המספר הבא בסדרה: 2, 4, 8, 16, ...?", options: ["24", "30", "32", "64"], correct: 2 },
+            { id: 'm13', category: 'math', question: "כמה צלעות יש למשושה (Hexagon)?", options: ["5", "6", "7", "8"], correct: 1 },
+            { id: 'm14', category: 'math', question: "מהו התוצאה של מינוס 5 כפול מינוס 4?", options: ["-20", "-9", "9", "20"], correct: 3 },
+            { id: 'm15', category: 'math', question: "מהו ההיקף של ריבוע שצלעו באורך 7 ס\"מ?", options: ["14 ס\"מ", "21 ס\"מ", "28 ס\"מ", "49 ס\"מ"], correct: 2 },
+            { id: 'm16', category: 'math', question: "כמה שניות יש בשעה אחת שלמה?", options: ["1800", "3600", "7200", "86400"], correct: 1 },
+            { id: 'm17', category: 'math', question: "מהו ערכו של X במשוואה: 3X + 6 = 21?", options: ["3", "5", "7", "9"], correct: 1 },
+            { id: 'm18', category: 'math', question: "כמה מעלות יש בזווית ישרה מלאה?", options: ["45", "90", "180", "360"], correct: 1 },
+            { id: 'm19', category: 'math', question: "מהי התוצאה של 15 אחוז מתוך 200?", options: ["15", "20", "30", "45"], correct: 2 },
+            { id: 'm20', category: 'math', question: "מהי סדרת פיבונאצ'י מתחילה ב: 0, 1, 1, 2, 3, 5, ... מה המספר הבא?", options: ["7", "8", "9", "10"], correct: 1 },
+
+            // Animals & Nature (20)
+            { id: 'n1', category: 'nature', question: "איזה בעל חיים ידוע בתור 'מלך הג'ונגל'?", options: ["נמר", "אריה", "פיל", "קרנף"], correct: 1 },
+            { id: 'n2', category: 'nature', question: "איזה יונק מסוגל לעוף באוויר?", options: ["סנאי", "עטלף", "דביבון", "קיפוד"], correct: 1 },
+            { id: 'n3', category: 'nature', question: "כמה לבבות יש לתמנון?", options: ["1", "2", "3", "4"], correct: 2 },
+            { id: 'n4', category: 'nature', question: "איזה בעל חיים ימי נחשב ליונק הגדול ביותר בעולם?", options: ["כריש לבן", "לווייתן כחול", "אורקה", "ראשתן"], correct: 1 },
+            { id: 'n5', category: 'nature', question: "איזו חיה ידועה כיכולתה לשנות את צבע עורה להסוואה?", options: ["זיקית", "איגואנה", "צבי", "זיזל"], correct: 0 },
+            { id: 'n6', category: 'nature', question: "איזו ציפור ידועה בכך שאינה מסוגלת לעוף אך רצה מהר מאוד?", options: ["יונה", "יען", "נשר", "פינגווין"], correct: 1 },
+            { id: 'n7', category: 'nature', question: "מהו המאכל העיקרי של דוב קואלה?", options: ["בננות", "עלי אקליפטוס", "דגים", "דבש"], correct: 1 },
+            { id: 'n8', category: 'nature', question: "איזו חיה ישנה בממוצע כ-20 שעות ביממה על עצי אקליפטוס?", options: ["עצלן", "קואלה", "פנדה", "אופוסום"], correct: 1 },
+            { id: 'n9', category: 'nature', question: "איזה חיה ידועה בתור הגבוהה ביותר בעולם עם צוואר ארוך?", options: ["פיל", "ג'ירפה", "קרנף", "זברה"], correct: 1 },
+            { id: 'n10', category: 'nature', question: "כמה זרועות יש לתמנון רגיל?", options: ["6", "8", "10", "12"], correct: 1 },
+            { id: 'n11', category: 'nature', question: "איזו חיה מפורסמת בייצור דבש?", options: ["צרעה", "דבורה", "פרפר", "נמלה"], correct: 1 },
+            { id: 'n12', category: 'nature', question: "איזה בעל חיים חי במדבר וידוע בדבשת או שתי דבשות לאגירת שומן?", options: ["גמל", "סוס", "חמור", "יאק"], correct: 0 },
+            { id: 'n13', category: 'nature', question: "איזו ציפור מסוגלת לרחף במקום ואפילו לעוף אחורה?", options: ["דרור", "קוליברי (יונק הדבש)", "נשר", "שחף"], correct: 1 },
+            { id: 'n14', category: 'nature', question: "איזה דוב חי בקוטב הצפוני ומאופיין בפרווה לבנה לחלוטין?", options: ["דוב גריזלי", "דוב פנדה", "דוב קוטב (Polar Bear)", "דוב שחור"], correct: 2 },
+            { id: 'n15', category: 'nature', question: "מהי החיה היבשתית הגדולה ביותר בעולם?", options: ["קרנף לבן", "היפופוטם", "פיל אפריקאי", "ג'ירפה"], correct: 2 },
+            { id: 'n16', category: 'nature', question: "איזה בעל חיים ימי נחשב לאינטליגנטי מאוד ומבצע פעלולים בקלות?", options: ["כריש", "דולפין", "מדוזה", "סרטן"], correct: 1 },
+            { id: 'n17', category: 'nature', question: "איזה בעל חיים נחשב למהיר ביותר בים?", options: ["דגי מפרש (Sailfish)", "כריש פטיש", "לווייתן קטלן", "טונה אדומה"], correct: 0 },
+            { id: 'n18', category: 'nature', question: "מהו שם הכלב הקטן ביותר בעולם בממוצע?", options: ["פודל", "צ'יוואווה", "פומרניין", "מלטז"], correct: 1 },
+            { id: 'n19', category: 'nature', question: "איזה חיה אוסטרלית מטילה ביצים אף על היותה יונק?", options: ["קנגורו", "ברווזן (Platypus)", "קואלה", "וומבט"], correct: 1 },
+            { id: 'n20', category: 'nature', question: "כמה קיבות יש בדרך כלל לפרה או מעלי גירה?", options: ["1", "2", "3", "4"], correct: 3 }
+        ];
+
+        let gameState = {
+            playerName: "שחקן אלמוני",
+            selectedBlook: 'fox',
+            selectedCategory: 'all',
+            gold: 150,
+            score: 0,
+            currentQuestionIndex: 0,
+            streak: 0,
+            timeLeft: 15,
+            timerInterval: null,
+            activeRoundQuestions: [],
+            recentQuestionIds: [] // Strictly tracks last shown questions to guarantee zero repetition
+        };
+
+        // Fisher-Yates shuffle algorithm for maximum randomness
+        function fisherYatesShuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function renderMainMenu() {
+            document.getElementById('stats-bar').classList.add('hidden');
+            const container = document.getElementById('screen-container');
+            
+            let categoriesHTML = Object.keys(categoriesData).map(key => {
+                let cat = categoriesData[key];
+                let isSelected = gameState.selectedCategory === key;
+                return `
+                    <button onclick="selectCategory('${key}'); playSound('click');" class="p-2.5 sm:p-3 rounded-xl border-2 ${isSelected ? 'border-amber-400 bg-indigo-800/90 shadow-md shadow-amber-500/10' : 'border-indigo-500/40 bg-slate-800 hover:bg-slate-700'} font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition">
+                        <span>${cat.icon}</span> ${cat.name}
+                    </button>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="text-center flex flex-col items-center w-full max-w-lg animate-float">
+                    <div class="text-4xl sm:text-5xl mb-1">🦊🪙⭐</div>
+                    <h1 class="text-2xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-pink-500 to-indigo-400 mb-1">בלוקט טריוויה עברית פרו</h1>
+                    <p class="text-slate-300 text-xs sm:text-sm mb-3">160+ שאלות, דמויות עם בונוסים מצטברים (Cumulative Perks)!</p>
+                    
+                    <div class="w-full bg-slate-800/95 p-3.5 rounded-2xl border-2 border-indigo-500/40 mb-3 shadow-inner">
+                        <label class="block text-right text-xs text-indigo-300 font-bold mb-1">שם השחקן שלך:</label>
+                        <input type="text" id="player-name-input" value="${gameState.playerName}" 
+                            class="w-full bg-slate-900 border-2 border-indigo-600 rounded-xl px-4 py-2 text-white text-center font-bold focus:outline-none focus:border-amber-400 transition text-sm"
+                            placeholder="הכנס שם...">
+                    </div>
+
+                    <div class="w-full bg-slate-800/90 p-3 rounded-2xl border-2 border-indigo-500/30 mb-4">
+                        <label class="block text-right text-xs text-indigo-300 font-bold mb-2">בחר נושא לסבב זה:</label>
+                        <div class="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto p-1">
+                            ${categoriesHTML}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 w-full">
+                        <button onclick="playSound('click'); startGame()" class="arcade-button bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-black py-3 px-4 rounded-2xl border-b-4 border-green-800 text-sm sm:text-base flex items-center justify-center gap-2">
+                            <span>🚀</span> התחל משחק
+                        </button>
+                        <button onclick="playSound('click'); renderShopMenu()" class="arcade-button bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white font-black py-3 px-4 rounded-2xl border-b-4 border-amber-800 text-sm sm:text-base flex items-center justify-center gap-2">
+                            <span>🏪</span> חנות בלוקים
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectCategory(catKey) {
+            gameState.selectedCategory = catKey;
+            renderMainMenu();
+        }
+
+        function renderShopMenu() {
+            const container = document.getElementById('screen-container');
+            
+            let blooksHTML = blooksData.map(blook => {
+                let isSelected = gameState.selectedBlook === blook.id;
+                let btnAction = '';
+                let btnText = '';
+                let btnClass = '';
+
+                // Calculate cumulative perks up to this blook for previewing in shop
+                let cumulativePreview = getCumulativePerks(blook.id);
+                let perkSummary = `זהב: x${cumulativePreview.goldMultiplier.toFixed(1)} | ניקוד: x${cumulativePreview.scoreMultiplier.toFixed(1)} | זמן: +${cumulativePreview.extraTime}ש'`;
+
+                if (blook.unlocked) {
+                    if (isSelected) {
+                        btnText = 'נבחר ✓';
+                        btnClass = 'bg-emerald-600 text-white cursor-default';
+                    } else {
+                        btnText = 'בחר דמות';
+                        btnClass = 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer';
+                        btnAction = `selectBlook('${blook.id}')`;
+                    }
+                } else {
+                    if (gameState.gold >= blook.price) {
+                        btnText = `קנה (${blook.price} 🪙)`;
+                        btnClass = 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black cursor-pointer gold-pulse';
+                        btnAction = `buyBlook('${blook.id}')`;
+                    } else {
+                        btnText = `חסר זהב (${blook.price})`;
+                        btnClass = 'bg-slate-700 text-slate-400 cursor-not-allowed';
+                    }
+                }
+
+                return `
+                    <div class="bg-slate-800/95 border-2 ${isSelected ? 'border-amber-400 shadow-amber-500/20 shadow-lg' : 'border-indigo-500/30'} rounded-2xl p-3 flex flex-col items-center justify-between transition">
+                        <div class="text-3xl sm:text-4xl mb-1 animate-float">${blook.emoji}</div>
+                        <div class="font-bold text-xs mb-0.5 text-center text-slate-100">${blook.name}</div>
+                        <div class="text-[9px] text-amber-300 text-center font-semibold mb-1 bg-slate-900/80 px-2 py-1 rounded-lg w-full">${blook.desc}</div>
+                        <div class="text-[8px] text-emerald-300 text-center mb-2 font-mono">סך הכל: ${perkSummary}</div>
+                        <button onclick="${btnAction}; playSound('click');" class="w-full py-1.5 rounded-xl text-[11px] font-bold transition ${btnClass}">
+                            ${btnText}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="w-full flex flex-col items-center">
+                    <div class="flex justify-between items-center w-full mb-3">
+                        <h2 class="text-base sm:text-xl font-black text-amber-400 flex items-center gap-2"><span>🏪</span> חנות הבלוקים (עם ירושת בונוסים מצטברת)</h2>
+                        <div class="bg-amber-500/20 px-3 py-1 rounded-xl border border-amber-500/40 font-bold text-amber-300 text-xs sm:text-sm">
+                            זהב זמין: ${gameState.gold} 🪙
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 w-full mb-4 max-h-[340px] overflow-y-auto p-1">
+                        ${blooksHTML}
+                    </div>
+
+                    <button onclick="playSound('click'); renderMainMenu()" class="arcade-button bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-6 rounded-xl border-b-4 border-slate-900 text-xs sm:text-sm">
+                        חזרה לתפריט הראשי ⬅
+                    </button>
+                </div>
+            `;
+        }
+
+        function selectBlook(id) {
+            gameState.selectedBlook = id;
+            renderShopMenu();
+        }
+
+        function buyBlook(id) {
+            let blook = blooksData.find(b => b.id === id);
+            if (blook && gameState.gold >= blook.price) {
+                gameState.gold -= blook.price;
+                blook.unlocked = true;
+                gameState.selectedBlook = id;
+                playSound('gold');
+                renderShopMenu();
+            }
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('player-name-input');
+            if (nameInput && nameInput.value.trim() !== "") {
+                gameState.playerName = nameInput.value.trim();
+            }
+
+            gameState.score = 0;
+            gameState.currentQuestionIndex = 0;
+            gameState.streak = 0;
+
+            // Filter pool by category
+            let pool = masterQuestionsPool;
+            if (gameState.selectedCategory !== 'all') {
+                pool = masterQuestionsPool.filter(q => q.category === gameState.selectedCategory);
+            }
+
+            // Exclude questions that appeared recently in session memory to strictly prevent repetition
+            let availablePool = pool.filter(q => !gameState.recentQuestionIds.includes(q.id));
+            if (availablePool.length < 10) {
+                // Reset memory if pool exhausted
+                gameState.recentQuestionIds = [];
+                availablePool = pool;
+            }
+
+            // Thorough Fisher-Yates shuffle
+            let shuffledPool = fisherYatesShuffle([...availablePool]);
+
+            // Pick 10 questions per round
+            gameState.activeRoundQuestions = shuffledPool.slice(0, 10);
+
+            // Record question IDs in session memory
+            gameState.activeRoundQuestions.forEach(q => {
+                gameState.recentQuestionIds.push(q.id);
+                if (gameState.recentQuestionIds.length > 80) {
+                    gameState.recentQuestionIds.shift();
+                }
+            });
+
+            document.getElementById('stats-bar').classList.remove('hidden');
+            updateStatsDisplay();
+            loadQuestion();
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('player-name-display').innerText = gameState.playerName;
+            document.getElementById('gold-display').innerText = gameState.gold;
+            document.getElementById('score-display').innerText = gameState.score;
+            
+            let currentBlookObj = blooksData.find(b => b.id === gameState.selectedBlook);
+            document.getElementById('current-blook-avatar').innerText = currentBlookObj ? currentBlookObj.emoji : '🦊';
+            
+            let perks = getCumulativePerks(gameState.selectedBlook);
+            document.getElementById('blook-perk-display').innerText = `בונוס מצטבר: זהב x${perks.goldMultiplier.toFixed(1)} | ניקוד x${perks.scoreMultiplier.toFixed(1)} | +${perks.extraTime}ש'`;
+        }
+
+        function loadQuestion() {
+            if (gameState.currentQuestionIndex >= gameState.activeRoundQuestions.length) {
+                endGame();
+                return;
+            }
+
+            clearInterval(gameState.timerInterval);
+            
+            let perks = getCumulativePerks(gameState.selectedBlook);
+            gameState.timeLeft = 15 + perks.extraTime;
+
+            const q = gameState.activeRoundQuestions[gameState.currentQuestionIndex];
+            const container = document.getElementById('screen-container');
+
+            let optionsHTML = q.options.map((opt, idx) => `
+                <button onclick="checkAnswer(${idx})" class="arcade-button text-right p-3.5 sm:p-4 rounded-2xl font-bold text-white bg-slate-800 hover:bg-indigo-700 border-2 border-indigo-500/40 hover:border-indigo-400 transition flex items-center justify-between text-xs sm:text-sm">
+                    <span>${opt}</span>
+                    <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-950 flex items-center justify-center text-indigo-300 text-xs font-black">${['א', 'ב', 'ג', 'ד'][idx]}</span>
+                </button>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="w-full flex flex-col items-center">
+                    <div class="flex justify-between items-center w-full mb-3 text-xs font-bold text-indigo-300">
+                        <span>שאלה ${gameState.currentQuestionIndex + 1} מתוך ${gameState.activeRoundQuestions.length}</span>
+                        <div class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-xl border border-indigo-500/30">
+                            <span>⏳ זמן:</span>
+                            <span id="timer-val" class="text-amber-400 text-sm font-black">${gameState.timeLeft}</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full bg-slate-800/95 border-2 border-indigo-500/50 p-4 sm:p-6 rounded-3xl mb-4 text-center shadow-lg">
+                        <h3 class="text-base sm:text-xl font-black text-white leading-relaxed">${q.question}</h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                        ${optionsHTML}
+                    </div>
+                </div>
+            `;
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                const timerEl = document.getElementById('timer-val');
+                if (timerEl) timerEl.innerText = gameState.timeLeft;
+
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+
+        function handleTimeout() {
+            playSound('wrong');
+            gameState.streak = 0;
+            showFeedback(false, "נגמר הזמן! ⏰");
+        }
+
+        function checkAnswer(selectedIdx) {
+            clearInterval(gameState.timerInterval);
+            const q = gameState.activeRoundQuestions[gameState.currentQuestionIndex];
+            const isCorrect = selectedIdx === q.correct;
+
+            let perks = getCumulativePerks(gameState.selectedBlook);
+
+            if (isCorrect) {
+                playSound('correct');
+                gameState.streak++;
+
+                let baseScore = 100 + (gameState.timeLeft * 5) + (gameState.streak * 10);
+                let baseGold = 25 + (gameState.streak * 5);
+
+                let earnedScore = Math.round(baseScore * perks.scoreMultiplier);
+                let earnedGold = Math.round(baseGold * perks.goldMultiplier);
+
+                gameState.score += earnedScore;
+                gameState.gold += earnedGold;
+                updateStatsDisplay();
+
+                showFeedback(true, `כל הכבוד! תשובה נכונה! 🎉 (+${earnedGold} זהב, +${earnedScore} נקודות עם בונוסים מצטברים)`);
+            } else {
+                playSound('wrong');
+                gameState.streak = 0;
+                showFeedback(false, `אופס! התשובה הנכונה הייתה: ${q.options[q.correct]} ❌`);
+            }
+        }
+
+        function showFeedback(isCorrect, message) {
+            const container = document.getElementById('screen-container');
+            container.innerHTML = `
+                <div class="text-center flex flex-col items-center w-full max-w-md animate-float">
+                    <div class="text-4xl sm:text-5xl mb-2">${isCorrect ? '🌟' : '💥'}</div>
+                    <h2 class="text-2xl sm:text-3xl font-black ${isCorrect ? 'text-emerald-400' : 'text-rose-400'} mb-2">${isCorrect ? 'תשובה מעולה!' : 'טעות בשאלה!'}</h2>
+                    <p class="text-slate-200 font-bold text-xs sm:text-sm mb-5 bg-slate-800 p-4 rounded-2xl border-2 ${isCorrect ? 'border-emerald-500/40' : 'border-rose-500/40'} w-full">${message}</p>
+                    
+                    <button onclick="playSound('click'); gameState.currentQuestionIndex++; loadQuestion();" class="arcade-button w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-3 rounded-2xl border-b-4 border-indigo-900 text-sm sm:text-base">
+                        המשך לשאלה הבאה ➡️
+                    </button>
+                </div>
+            `;
+        }
+
+        function endGame() {
+            document.getElementById('stats-bar').classList.add('hidden');
+            const container = document.getElementById('screen-container');
+            let currentBlookObj = blooksData.find(b => b.id === gameState.selectedBlook);
+
+            container.innerHTML = `
+                <div class="text-center flex flex-col items-center w-full max-w-md animate-float">
+                    <div class="text-5xl sm:text-6xl mb-2">${currentBlookObj ? currentBlookObj.emoji : '🏆'}</div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-amber-400 mb-1">כל הכבוד, ${gameState.playerName}!</h2>
+                    <p class="text-slate-300 text-xs sm:text-sm mb-4">סיימת את הסבב בהצלחה בעזרת הבונוסים המצטברים של הדמות שלך!</p>
+
+                    <div class="grid grid-cols-2 gap-3 w-full mb-5">
+                        <div class="bg-slate-800 border-2 border-amber-500/40 p-3.5 rounded-2xl text-center">
+                            <div class="text-xs text-slate-400 mb-1">סך הכל זהב</div>
+                            <div class="text-xl sm:text-2xl font-black text-amber-300">🪙 ${gameState.gold}</div>
+                        </div>
+                        <div class="bg-slate-800 border-2 border-emerald-500/40 p-3.5 rounded-2xl text-center">
+                            <div class="text-xs text-slate-400 mb-1">ניקוד סופי</div>
+                            <div class="text-xl sm:text-2xl font-black text-emerald-300">⭐ ${gameState.score}</div>
+                        </div>
+                    </div>
+
+                    <div class="w-full flex flex-col gap-2.5">
+                        <button onclick="playSound('click'); renderMainMenu()" class="arcade-button w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-black py-3 rounded-2xl border-b-4 border-green-800 text-sm sm:text-base">
+                            🔄 שחק סבב חדש (שאלות חדשות לחלוטין)
+                        </button>
+                        <button onclick="playSound('click'); renderShopMenu()" class="arcade-button w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white font-black py-3 rounded-2xl border-b-4 border-amber-800 text-sm sm:text-base">
+                            🏪 חנות בלוקים
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize application on load
+        window.onload = function() {
+            renderMainMenu();
+        };
+    </script>
+</body>
+</html>
